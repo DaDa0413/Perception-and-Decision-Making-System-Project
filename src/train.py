@@ -16,9 +16,10 @@ from .tools import SimpleLoss, get_batch_iou, get_val_info
 
 
 def train(version,
-            dataroot='/data/nuscenes',
+            # dataroot='/data/nuscenes',
+            dataroot='/home/daniellin/data/sets/nuscenes',
             nepochs=10000,
-            gpuid=1,
+            gpuid=0,
 
             H=900, W=1600,
             resize_lim=(0.193, 0.225),
@@ -62,7 +63,8 @@ def train(version,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
 
-    device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    device = torch.device('cuda:0')
 
     model = compile_model(grid_conf, data_aug_conf, outC=1)
     model.to(device)

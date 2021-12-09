@@ -19,7 +19,7 @@ from .models import compile_model
 
 
 def lidar_check(version,
-                dataroot='/data/nuscenes',
+                dataroot='/home/daniellin/data/sets/nuscenes',
                 show_lidar=True,
                 viz_train=False,
                 nepochs=1,
@@ -117,8 +117,8 @@ def lidar_check(version,
 
 
 def cumsum_check(version,
-                dataroot='/data/nuscenes',
-                gpuid=1,
+                dataroot='/home/daniellin/data/sets/nuscenes',
+                gpuid=0,
 
                 H=900, W=1600,
                 resize_lim=(0.193, 0.225),
@@ -156,7 +156,8 @@ def cumsum_check(version,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
 
-    device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    device = torch.device('cuda:0')
     loader = trainloader
 
     model = compile_model(grid_conf, data_aug_conf, outC=1)
@@ -193,8 +194,8 @@ def cumsum_check(version,
 
 def eval_model_iou(version,
                 modelf,
-                dataroot='/data/nuscenes',
-                gpuid=1,
+                dataroot='/home/daniellin/data/sets/nuscenes',
+                gpuid=0,
 
                 H=900, W=1600,
                 resize_lim=(0.193, 0.225),
@@ -232,7 +233,8 @@ def eval_model_iou(version,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
 
-    device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    device = torch.device('cuda:0')
 
     model = compile_model(grid_conf, data_aug_conf, outC=1)
     print('loading', modelf)
@@ -248,9 +250,10 @@ def eval_model_iou(version,
 
 def viz_model_preds(version,
                     modelf,
-                    dataroot='/data/nuscenes',
-                    map_folder='/data/nuscenes/mini',
-                    gpuid=1,
+                    dataroot='/home/daniellin/data/sets/nuscenes',
+                    map_folder='/home/daniellin/data/sets/nuscenes',
+                    # map_folder='/data/nuscenes/mini',
+                    gpuid=0,
                     viz_train=False,
 
                     H=900, W=1600,
@@ -292,7 +295,8 @@ def viz_model_preds(version,
     loader = trainloader if viz_train else valloader
     nusc_maps = get_nusc_maps(map_folder)
 
-    device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
+    device = torch.device('cuda:0')
 
     model = compile_model(grid_conf, data_aug_conf, outC=1)
     print('loading', modelf)
