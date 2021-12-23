@@ -171,7 +171,7 @@ normalize_img = torchvision.transforms.Compose((
 ))
 
 
-def gen_dx_bx(xbound, ybound, zbound):
+def gen_dx_bx(xbound, ybound, zbound):  # Create the bin grid
     dx = torch.Tensor([row[2] for row in [xbound, ybound, zbound]])
     bx = torch.Tensor([row[0] + row[2]/2.0 for row in [xbound, ybound, zbound]])
     nx = torch.LongTensor([(row[1] - row[0]) / row[2] for row in [xbound, ybound, zbound]])
