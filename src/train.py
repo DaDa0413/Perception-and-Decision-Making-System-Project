@@ -32,7 +32,7 @@ def train(version,
             pos_weight=2.13,
             logdir='./runs',
 
-            xbound=[-50.0, 50.0, 0.5],
+            xbound=[-50.0, 50.0, 0.5],  # bird-eye-view grid size
             ybound=[-50.0, 50.0, 0.5],
             zbound=[-10.0, 10.0, 20.0],
             dbound=[4.0, 45.0, 1.0],
@@ -66,7 +66,7 @@ def train(version,
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=1)
+    model = compile_model(grid_conf, data_aug_conf, outC=4)
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)

@@ -94,7 +94,7 @@ class BevEncode(nn.Module):
         trunk = resnet18(pretrained=False, zero_init_residual=True)
         self.conv1 = nn.Conv2d(inC, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
-        self.bn1 = trunk.bn1
+        self.bn1 = trunk.bn1    # batchnorm
         self.relu = trunk.relu
 
         self.layer1 = trunk.layer1
@@ -116,13 +116,12 @@ class BevEncode(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
 
-        x1 = self.layer1(x)
-        x = self.layer2(x1)
-        x = self.layer3(x)
+        x1 = self.layer1(x) # x1: torch.Size([4, 64, 100, 100])
+        x = self.layer2(x1) 
+        x = self.layer3(x) # x: torch.Size([4, 256, 25, 25])
 
-        x = self.up1(x, x1)
-        x = self.up2(x)
-
+        x = self.up1(x, x1) # x up1: torch.Size([4, 256, 100, 100])
+        x = self.up2(x) # x up2: torch.Size([4, 4, 200, 200]) (if outC = 4)
         return x
 
 
@@ -143,7 +142,9 @@ class LiftSplatShoot(nn.Module):
         self.downsample = 16
         self.camC = 64
         self.frustum = self.create_frustum()
-        self.D, _, _, _ = self.frustum.shape
+        self.D, _, _, _ = self.frustum.shape   # torch.Size([41, 8, 22, 3])
+        print(self.frustum.shape)
+        exit()
         self.camencode = CamEncode(self.D, self.camC, self.downsample)
         self.bevencode = BevEncode(inC=self.camC, outC=outC)
 
@@ -242,10 +243,10 @@ class LiftSplatShoot(nn.Module):
         return final
 
     def get_voxels(self, x, rots, trans, intrins, post_rots, post_trans):
-        geom = self.get_geometry(rots, trans, intrins, post_rots, post_trans)
-        x = self.get_cam_feats(x)
+        geom = self.get_geometry(rots, trans, intrins, post_rots, post_trans) # torch.Size([4, 5, 41, 8, 22, 3])
+        x = self.get_cam_feats(x)   # torch.Size([4, 5, 41, 8, 22, 64])
 
-        x = self.voxel_pooling(geom, x)
+        x = self.voxel_pooling(geom, x) # torch.Size([4, 64, 200, 200])
 
         return x
 
