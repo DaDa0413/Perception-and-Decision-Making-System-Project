@@ -63,7 +63,7 @@ def lidar_check(version,
 
     loader = trainloader if viz_train else valloader
 
-    model = compile_model(grid_conf, data_aug_conf, outC=1)
+    model = compile_model(grid_conf, data_aug_conf, outC=10)
 
     rat = H / W
     val = 10.1
@@ -90,8 +90,6 @@ def lidar_check(version,
                     if show_lidar:
                         plt.scatter(plot_pts[0, mask], plot_pts[1, mask], c=ego_pts[2, mask],
                                 s=5, alpha=0.1, cmap='jet')
-                    # plot_pts = post_rots[si, imgi].matmul(img_pts[si, imgi].view(-1, 3).t()) + post_trans[si, imgi].unsqueeze(1)
-                    # plt.scatter(img_pts[:, :, :, 0].view(-1), img_pts[:, :, :, 1].view(-1), s=1)
                     plt.axis('off')
 
                     plt.sca(final_ax)
@@ -160,7 +158,7 @@ def cumsum_check(version,
     device = torch.device('cuda:0')
     loader = trainloader
 
-    model = compile_model(grid_conf, data_aug_conf, outC=1)
+    model = compile_model(grid_conf, data_aug_conf, outC=10)
     model.to(device)
 
     model.eval()
@@ -236,7 +234,7 @@ def eval_model_iou(version,
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=1)
+    model = compile_model(grid_conf, data_aug_conf, outC=10)
     print('loading', modelf)
     model.load_state_dict(torch.load(modelf))
     model.to(device)
@@ -254,7 +252,7 @@ def viz_model_preds(version,
                     map_folder='/home/daniellin/data/sets/nuscenes',
                     # map_folder='/data/nuscenes/mini',
                     gpuid=0,
-                    viz_train=False,
+                    viz_train=True,
 
                     H=900, W=1600,
                     resize_lim=(0.193, 0.225),
@@ -298,7 +296,7 @@ def viz_model_preds(version,
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=1)
+    model = compile_model(grid_conf, data_aug_conf, outC=10)
     print('loading', modelf)
     model.load_state_dict(torch.load(modelf))
     model.to(device)
@@ -306,20 +304,18 @@ def viz_model_preds(version,
     dx, bx, _ = gen_dx_bx(grid_conf['xbound'], grid_conf['ybound'], grid_conf['zbound'])
     dx, bx = dx[:2].numpy(), bx[:2].numpy()
 
-    scene2map = {}
-    for rec in loader.dataset.nusc.scene:
-        log = loader.dataset.nusc.get('log', rec['log_token'])
-        scene2map[rec['name']] = log['location']
-
 
     val = 0.01
     fH, fW = final_dim
     fig = plt.figure(figsize=(3*fW*val, (1.5*fW + 2*fH)*val))
-    gs = mpl.gridspec.GridSpec(3, 3, height_ratios=(1.5*fW, fH, fH))
+    gs = mpl.gridspec.GridSpec(3, 15)
     gs.update(wspace=0.0, hspace=0.0, left=0.0, right=1.0, top=1.0, bottom=0.0)
 
     model.eval()
     counter = 0
+    segmentation_type = ['cross_walk', 'other_cars', 'white_broken_lane', 
+                         'yelow_solid_lane', 'drivable_lae', 'shoulder', 
+                         'white_solid_lane', 'non-drivable_area', 'side_walk', 'yellow_broken_lane']
     with torch.no_grad():
         for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs) in enumerate(loader):
             out = model(imgs.to(device),
@@ -334,7 +330,7 @@ def viz_model_preds(version,
             for si in range(imgs.shape[0]):
                 plt.clf()
                 for imgi, img in enumerate(imgs[si]):
-                    ax = plt.subplot(gs[1 + imgi // 3, imgi % 3])
+                    ax = plt.subplot(gs[2, imgi * 5 : imgi * 5 + 5])
                     showimg = denormalize_img(img)
                     # flip the bottom images
                     if imgi > 2:
@@ -343,23 +339,21 @@ def viz_model_preds(version,
                     plt.axis('off')
                     plt.annotate(cams[imgi].replace('_', ' '), (0.01, 0.92), xycoords='axes fraction')
 
-                ax = plt.subplot(gs[0, :])
-                ax.get_xaxis().set_ticks([])
-                ax.get_yaxis().set_ticks([])
-                plt.setp(ax.spines.values(), color='b', linewidth=2)
-                plt.legend(handles=[
-                    mpatches.Patch(color=(0.0, 0.0, 1.0, 1.0), label='Output Vehicle Segmentation'),
-                    mpatches.Patch(color='#76b900', label='Ego Vehicle'),
-                    mpatches.Patch(color=(1.00, 0.50, 0.31, 0.8), label='Map (for visualization purposes only)')
-                ], loc=(0.01, 0.86))
-                plt.imshow(out[si].squeeze(0), vmin=0, vmax=1, cmap='Blues')
+
+                for si_seg in range(10):
+                    ax = plt.subplot(gs[si_seg // 5, si_seg % 5 * 3 : si_seg % 5 * 3 + 3])
+                    ax.get_xaxis().set_ticks([])
+                    ax.get_yaxis().set_ticks([])
+                    plt.setp(ax.spines.values(), color='b', linewidth=2)
+                    plt.imshow(out[si][si_seg].squeeze(0), vmin=0, vmax=1, cmap='Blues')
+                    plt.annotate(segmentation_type[si_seg].replace('_', ' '), (0.01, 0.92), xycoords='axes fraction')
 
                 # plot static map (improves visualization)
-                rec = loader.dataset.ixes[counter]
-                plot_nusc_map(rec, nusc_maps, loader.dataset.nusc, scene2map, dx, bx)
-                plt.xlim((out.shape[3], 0))
-                plt.ylim((0, out.shape[3]))
-                add_ego(bx, dx)
+                # rec = loader.dataset.ixes[counter]
+                # plot_nusc_map(rec, nusc_maps, loader.dataset.nusc, scene2map, dx, bx)
+                # plt.xlim((out.shape[3], 0))
+                # plt.ylim((0, out.shape[3]))
+                # add_ego(bx, dx)
 
                 imname = f'eval{batchi:06}_{si:03}.jpg'
                 print('saving', imname)
