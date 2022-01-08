@@ -242,30 +242,33 @@ def get_batch_iou(preds, binimgs):
 
 def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
     model.eval()
-    total_loss = 0.0
+    total_seg_loss = 0.0
+    total_control_loss = 0.0
     total_intersect = 0.0
     total_union = 0
     print('running eval...')
     loader = tqdm(valloader) if use_tqdm else valloader
     with torch.no_grad():
         for batch in loader:
-            allimgs, rots, trans, intrins, post_rots, post_trans, binimgs = batch
-            preds = model(allimgs.to(device), rots.to(device),
-                          trans.to(device), intrins.to(device), post_rots.to(device),
-                          post_trans.to(device))
+            allimgs, rots, trans, intrins, post_rots, post_trans, binimgs, cmds, controls = batch
+            pred_segs, preds_controls = model(allimgs.to(device), rots.to(device), trans.to(device), intrins.to(device),
+                          post_rots.to(device), post_trans.to(device), cmds.to(device))
             binimgs = binimgs.to(device)
+            controls = controls.to(device)
 
             # loss
-            total_loss += loss_fn(preds, binimgs).item() * preds.shape[0]
+            total_seg_loss += loss_fn(pred_segs, binimgs).item() * pred_segs.shape[0]
+            total_control_loss += loss_fn(preds_controls, controls) * preds_controls.shape[0]
 
             # iou
-            intersect, union, _ = get_batch_iou(preds, binimgs)
+            intersect, union, _ = get_batch_iou(pred_segs, binimgs)
             total_intersect += intersect
             total_union += union
 
     model.train()
     return {
-            'loss': total_loss / len(valloader.dataset),
+            'seg_loss': total_seg_loss / len(valloader.dataset),
+            'control_loss': total_control_loss / len(valloader.dataset),
             'iou': total_intersect / total_union,
             }
 

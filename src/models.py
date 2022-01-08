@@ -10,7 +10,7 @@ from efficientnet_pytorch import EfficientNet
 from torchvision.models.resnet import resnet18
 
 from .tools import gen_dx_bx, cumsum_trick, QuickCumsum
-
+from .cilrs import Cilrs
 
 class Up(nn.Module):
     def __init__(self, in_channels, out_channels, scale_factor=2):
@@ -148,7 +148,8 @@ class LiftSplatShoot(nn.Module):
 
         # toggle using QuickCumsum vs. autograd
         self.use_quickcumsum = True
-    
+        self.controller = Cilrs()
+
     def create_frustum(self):
         # make grid in image plane
         ogfH, ogfW = self.data_aug_conf['final_dim']
@@ -248,10 +249,13 @@ class LiftSplatShoot(nn.Module):
 
         return x
 
-    def forward(self, x, rots, trans, intrins, post_rots, post_trans):
-        x = self.get_voxels(x, rots, trans, intrins, post_rots, post_trans)
-        x = self.bevencode(x)
-        return x
+    def forward(self, imgs, rots, trans, intrins, post_rots, post_trans, cmds):
+        # BEV segmentation
+        imgs = self.get_voxels(imgs, rots, trans, intrins, post_rots, post_trans)
+        segs = self.bevencode(imgs)
+        # Driving parameters
+        controls = self.controller(segs, cmds)
+        return segs, controls
 
 
 def compile_model(grid_conf, data_aug_conf, outC):

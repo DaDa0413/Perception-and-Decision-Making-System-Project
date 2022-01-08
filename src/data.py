@@ -34,12 +34,12 @@ class NuscData(torch.utils.data.Dataset):
 
     def prepro(self):
         samples = []
-        samples += self.add_scenarios('data', 'ClearNoon_', 34, 314)
+        samples += self.add_scenarios('data/3_1_4_c_f_f_0_0', 'ClearNoon_', 35, 204, 4)
 
         return samples
 
-    def add_scenarios(self, path, scene, frame_begin, frame_end):
-        return [{'path': path, 'scene': scene, 'frame': i}
+    def add_scenarios(self, path, scene, frame_begin, frame_end, cmd):
+        return [{'path': path, 'scene': scene, 'frame': i, 'control_frame': i - frame_begin, 'cmd': cmd}
                     for i in range(frame_begin, frame_end + 1)]
 
     def sample_augmentation(self):
@@ -75,8 +75,10 @@ class NuscData(torch.utils.data.Dataset):
         intrins = []
         post_rots = []
         post_trans = []
+
         img_path = os.path.join(self.samples[index]['path'], self.samples[index]['scene'])
         tf_path = os.path.join(self.samples[index]['path'], 'transformation')
+        
         for cam in cams:
             # read image
             imgname = os.path.join(img_path, cam, "{:08d}".format(self.samples[index]['frame']) + '.png')
@@ -127,14 +129,15 @@ class NuscData(torch.utils.data.Dataset):
             post_rots.append(post_rot)
             post_trans.append(post_tran)
 
+
         return (torch.stack(imgs), torch.stack(rots), torch.stack(trans),
                 torch.stack(intrins), torch.stack(post_rots), torch.stack(post_trans))
 
     def get_binimg(self, index):
-        bin_path = os.path.join(self.samples[index]['path'], 'segmentation')
+        bin_path = os.path.join(self.samples[index]['path'], 'GT/')
         bins = []
         segs = ['cross_walk', 'other_cars', 'white_broken_lane', 
-                'yelow_solid_lane', 'drivable_lae', 'shoulder', 
+                'yelow_solid_lane', 'drivable_lane', 'shoulder', 
                 'white_solid_lane', 'non-drivable_area', 'side_walk', 'yellow_broken_lane']
         for seg in segs:
             bin_name = os.path.join(bin_path, seg, str(self.samples[index]['frame']) + '.npy')
@@ -142,6 +145,16 @@ class NuscData(torch.utils.data.Dataset):
             bins.append(bin)
 
         return torch.Tensor(bins)
+
+    def get_driving_parameters(self, index):
+
+        # Carla specific
+        control_file = os.path.join(self.samples[index]['path'], 'GT/control.npy')
+        control_frame = self.samples[index]['control_frame']
+        control = np.load(control_file)[control_frame][1:4] # Extract brake, steer, throttle
+
+        cmd = self.samples[index]['cmd']
+        return torch.Tensor([cmd]), torch.Tensor(control)
 
     def __str__(self):
         return f"""NuscData: {len(self)} samples. Split: {"train" if self.is_train else "val"}.
@@ -168,8 +181,8 @@ class SegmentationData(NuscData):
         cams = ['left', 'front', 'right']
         imgs, rots, trans, intrins, post_rots, post_trans = self.get_image_data(index, cams)
         binimg = self.get_binimg(index)
-        
-        return imgs, rots, trans, intrins, post_rots, post_trans, binimg
+        cmd, control = self.get_driving_parameters(index)
+        return imgs, rots, trans, intrins, post_rots, post_trans, binimg, cmd, control
 
 
 def worker_rnd_init(x):
