@@ -45,7 +45,8 @@ class NuscData(torch.utils.data.Dataset):
     def sample_augmentation(self):
         H, W = self.data_aug_conf['H'], self.data_aug_conf['W']
         fH, fW = self.data_aug_conf['final_dim']
-        if self.is_train:
+        if False:
+        # if self.is_train:
             resize = np.random.uniform(*self.data_aug_conf['resize_lim'])
             resize_dims = (int(W*resize), int(H*resize))
             newW, newH = resize_dims
