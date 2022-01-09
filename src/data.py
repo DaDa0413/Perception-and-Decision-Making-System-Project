@@ -138,11 +138,21 @@ class NuscData(torch.utils.data.Dataset):
         bins = []
         segs = ['cross_walk', 'other_cars', 'white_broken_lane', 
                 'yelow_solid_lane', 'drivable_lane', 'shoulder', 
-                'white_solid_lane', 'non-drivable_area', 'side_walk', 'yellow_broken_lane']
+                'white_solid_lane', 'yellow_broken_lane']
         for seg in segs:
             bin_name = os.path.join(bin_path, seg, str(self.samples[index]['frame']) + '.npy')
             bin = np.load(bin_name)
             bins.append(bin)
+
+        return torch.Tensor(bins)
+
+    def get_topology(self, index):
+        bin_path = os.path.join(self.samples[index]['path'], 'GT/')
+        bins = []
+        seg = 'topology'
+        bin_name = os.path.join(bin_path, seg, str(self.samples[index]['frame']) + '.npy')
+        bin = np.load(bin_name)
+        bins.append(bin)
 
         return torch.Tensor(bins)
 
@@ -181,8 +191,9 @@ class SegmentationData(NuscData):
         cams = ['left', 'front', 'right']
         imgs, rots, trans, intrins, post_rots, post_trans = self.get_image_data(index, cams)
         binimg = self.get_binimg(index)
+        topology = self.get_topology(index)
         cmd, control = self.get_driving_parameters(index)
-        return imgs, rots, trans, intrins, post_rots, post_trans, binimg, cmd, control
+        return imgs, rots, trans, intrins, post_rots, post_trans, binimg, topology, cmd, control
 
 
 def worker_rnd_init(x):

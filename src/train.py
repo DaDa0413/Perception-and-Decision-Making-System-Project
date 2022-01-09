@@ -66,7 +66,7 @@ def train(version,
     device = torch.device('cuda:0')
 
     # Compile model
-    model = compile_model(grid_conf, data_aug_conf, outC=10)
+    model = compile_model(grid_conf, data_aug_conf, outC=8)
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -80,7 +80,7 @@ def train(version,
     counter = 0
     for epoch in range(nepochs):
         np.random.seed()
-        for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs, cmds, controls) in enumerate(trainloader):
+        for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs, topologies, cmds, controls) in enumerate(trainloader):
             t0 = time()
             opt.zero_grad()
             # Predict segmentation and control
@@ -90,6 +90,7 @@ def train(version,
                     intrins.to(device),
                     post_rots.to(device),
                     post_trans.to(device),
+                    topologies.to(device),
                     cmds.to(device)
                     )
             binimgs = binimgs.to(device)

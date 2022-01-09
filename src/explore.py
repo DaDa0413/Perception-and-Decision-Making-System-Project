@@ -63,7 +63,7 @@ def lidar_check(version,
 
     loader = trainloader if viz_train else valloader
 
-    model = compile_model(grid_conf, data_aug_conf, outC=10)
+    model = compile_model(grid_conf, data_aug_conf, outC=8)
 
     rat = H / W
     val = 10.1
@@ -158,7 +158,7 @@ def cumsum_check(version,
     device = torch.device('cuda:0')
     loader = trainloader
 
-    model = compile_model(grid_conf, data_aug_conf, outC=10)
+    model = compile_model(grid_conf, data_aug_conf, outC=8)
     model.to(device)
 
     model.eval()
@@ -234,7 +234,7 @@ def eval_model_iou(version,
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=10)
+    model = compile_model(grid_conf, data_aug_conf, outC=8)
     print('loading', modelf)
     model.load_state_dict(torch.load(modelf))
     model.to(device)
@@ -296,7 +296,7 @@ def viz_model_preds(version,
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=10)
+    model = compile_model(grid_conf, data_aug_conf, outC=8)
     print('loading', modelf)
     model.load_state_dict(torch.load(modelf))
     model.to(device)
@@ -315,7 +315,7 @@ def viz_model_preds(version,
     counter = 0
     segmentation_type = ['cross_walk', 'other_cars', 'white_broken_lane', 
                          'yelow_solid_lane', 'drivable_lae', 'shoulder', 
-                         'white_solid_lane', 'non-drivable_area', 'side_walk', 'yellow_broken_lane']
+                         'white_solid_lane', 'yellow_broken_lane']
     with torch.no_grad():
         for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs) in enumerate(loader):
             out = model(imgs.to(device),

@@ -249,12 +249,14 @@ class LiftSplatShoot(nn.Module):
 
         return x
 
-    def forward(self, imgs, rots, trans, intrins, post_rots, post_trans, cmds):
+    def forward(self, imgs, rots, trans, intrins, post_rots, post_trans, topologies, cmds):
         # BEV segmentation
         imgs = self.get_voxels(imgs, rots, trans, intrins, post_rots, post_trans)
         segs = self.bevencode(imgs)
+        # Add topology
+        x = torch.cat((segs, topologies), 1)
         # Driving parameters
-        controls = self.controller(segs, cmds)
+        controls = self.controller(x, cmds)
         return segs, controls
 
 

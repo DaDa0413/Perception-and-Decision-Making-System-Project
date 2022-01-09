@@ -17,7 +17,7 @@ class Cilrs(nn.Module):
     def __init__(self):
         super().__init__()
         # Simple CNN
-        self.conv1 = Conv2d(in_channels=10, out_channels=32, kernel_size=(5, 5)) # Output width: 204
+        self.conv1 = Conv2d(in_channels=9, out_channels=32, kernel_size=(5, 5)) # Output width: 204
         self.relu1 = ReLU()
         self.maxpool1 = MaxPool2d(kernel_size=(2, 2), stride=(2, 2)) # Output width: 102
         self.conv2 = Conv2d(in_channels=32, out_channels=64, kernel_size=(5, 5)) # # Output width: 106
