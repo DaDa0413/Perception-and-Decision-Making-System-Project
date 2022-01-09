@@ -1,10 +1,12 @@
 import numpy as np
 import os
+import random
 
 #scenario_name = input('scenario name: ')
 root_dir = 'data/'
 
 
+msg = []
 for root, dirs, files in os.walk(root_dir):
     for scenario_name in dirs:
         path = os.path.join(root_dir, scenario_name, "GT", "cross_walk")
@@ -18,6 +20,10 @@ for root, dirs, files in os.walk(root_dir):
         last_num = max(num_list)
         # Print lines
         cmd = scenario_name.split('_')[2]
-        print("        samples += self.add_scenarios('data/{}', 'ClearNoon_', {}, {}, {})".format(scenario_name, str(first_num), str(last_num), cmd))
+        msg.append("            samples += self.add_scenarios('{}{}', 'ClearNoon_', {}, {}, {})".format(root_dir, scenario_name, str(first_num + 20), str(last_num), cmd))
 
     break   # Only traverse the first layer
+
+random.shuffle(msg)
+for m in msg:
+    print(m)

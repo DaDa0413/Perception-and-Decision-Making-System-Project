@@ -12,6 +12,8 @@ from tqdm import tqdm
 from pyquaternion import Quaternion
 from PIL import Image
 from functools import reduce
+import torch.nn.functional as F
+
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -258,7 +260,8 @@ def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
 
             # loss
             total_seg_loss += loss_fn(pred_segs, binimgs).item() * pred_segs.shape[0]
-            total_control_loss += loss_fn(preds_controls, controls) * preds_controls.shape[0]
+            # total_control_loss += loss_fn(preds_controls, controls) * preds_controls.shape[0]
+            total_control_loss += F.l1_loss(preds_controls, controls) * preds_controls.shape[0]
 
             # iou
             intersect, union, _ = get_batch_iou(pred_segs, binimgs)

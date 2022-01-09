@@ -5,6 +5,7 @@ Authors: Jonah Philion and Sanja Fidler
 """
 
 import torch
+import torch.nn.functional as F
 from time import time
 from tensorboardX import SummaryWriter
 import numpy as np
@@ -37,7 +38,7 @@ def train(version,
             zbound=[-10.0, 10.0, 20.0],
             dbound=[4.0, 45.0, 1.0],
 
-            bsz=4,
+            bsz=32,
             nworkers=10,
             lr=1e-3,
             weight_decay=1e-7,
@@ -78,7 +79,9 @@ def train(version,
 
     model.train()
     counter = 0
+
     for epoch in range(nepochs):
+        start = time()
         np.random.seed()
         for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs, topologies, cmds, controls) in enumerate(trainloader):
             t0 = time()
@@ -98,7 +101,7 @@ def train(version,
 
             # loss function
             loss1 = loss_fn(pred_segs, binimgs)
-            loss2 = loss_fn(preds_controls, controls)
+            loss2 = F.l1_loss(preds_controls, controls)
             loss3 = loss1 + loss2
             loss3.backward()
             # Clip norm and optimized
@@ -130,3 +133,4 @@ def train(version,
                 print('saving', mname)
                 torch.save(model.state_dict(), mname)
                 model.train()
+        print("Time interval: {}".format(time() - start))
