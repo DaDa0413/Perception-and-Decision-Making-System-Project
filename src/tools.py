@@ -245,7 +245,9 @@ def get_batch_iou(preds, binimgs):
 def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
     model.eval()
     total_seg_loss = 0.0
-    total_control_loss = 0.0
+    total_throttle_loss = 0.0
+    total_steer_loss = 0.0
+    total_brake_loss = 0.0
     total_intersect = 0.0
     total_union = 0
     print('running eval...')
@@ -260,8 +262,10 @@ def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
 
             # loss
             total_seg_loss += loss_fn(pred_segs, binimgs).item() * pred_segs.shape[0]
-            # total_control_loss += loss_fn(preds_controls, controls) * preds_controls.shape[0]
-            total_control_loss += F.l1_loss(preds_controls, controls) * preds_controls.shape[0]
+            total_throttle_loss += F.l1_loss(preds_controls[:,0], controls[:,0]) * preds_controls.shape[0]
+            total_steer_loss += F.l1_loss(preds_controls[:,1], controls[:,1]) * preds_controls.shape[0]
+            total_brake_loss += F.l1_loss(preds_controls[:,2], controls[:,2]) * preds_controls.shape[0]
+            # total_control_loss += F.l1_loss(preds_controls, controls) * preds_controls.shape[0]
 
             # iou
             intersect, union, _ = get_batch_iou(pred_segs, binimgs)
@@ -271,7 +275,9 @@ def get_val_info(model, valloader, loss_fn, device, use_tqdm=False):
     model.train()
     return {
             'seg_loss': total_seg_loss / len(valloader.dataset),
-            'control_loss': total_control_loss / len(valloader.dataset),
+            'throttle_loss': total_throttle_loss / len(valloader.dataset),
+            'steer_loss': total_steer_loss / len(valloader.dataset),
+            'brake_loss': total_brake_loss / len(valloader.dataset),
             'iou': total_intersect / total_union,
             }
 

@@ -125,7 +125,9 @@ def train(version,
                 val_info = get_val_info(model, valloader, loss_fn, device)
                 print('VAL', val_info)
                 writer.add_scalar('val/seg_loss', val_info['seg_loss'], counter)
-                writer.add_scalar('val/control_loss', val_info['control_loss'], counter)
+                writer.add_scalar('val/throttle_loss', val_info['throttle_loss'], counter)
+                writer.add_scalar('val/steer_loss', val_info['steer_loss'], counter)
+                writer.add_scalar('val/brake_loss', val_info['brake_loss'], counter)
                 writer.add_scalar('val/iou', val_info['iou'], counter)
 
             if counter % val_step == 0:
