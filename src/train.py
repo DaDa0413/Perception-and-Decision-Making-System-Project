@@ -17,6 +17,7 @@ from .tools import SimpleLoss, get_batch_iou, get_val_info
 from .cilrs import Cilrs
 
 def train(version,
+            use_topology,
             # dataroot='/data/nuscenes',
             dataroot='/home/daniellin/data/sets/nuscenes',
             nepochs=10000,
@@ -40,7 +41,7 @@ def train(version,
 
             bsz=32,
             nworkers=10,
-            lr=1e-3,
+            lr=1e-4,
             weight_decay=1e-7,
             ):
     grid_conf = {
@@ -60,14 +61,14 @@ def train(version,
                              'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT'],
                     'Ncams': ncams,
                 }
-    trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
+    trainloader, valloader = compile_data(version, dataroot, use_topology, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
 
     device = torch.device('cuda:0')
 
-    # Compile model
-    model = compile_model(grid_conf, data_aug_conf, outC=8)
+    # Compile model    
+    model = compile_model(grid_conf, data_aug_conf, use_topology, outC=8)
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)

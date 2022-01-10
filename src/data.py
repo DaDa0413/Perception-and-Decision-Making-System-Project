@@ -19,7 +19,8 @@ from .tools import get_lidar_data, img_transform, normalize_img, gen_dx_bx
 
 
 class NuscData(torch.utils.data.Dataset):
-    def __init__(self, is_train, data_aug_conf, grid_conf):
+    def __init__(self, use_topology, is_train, data_aug_conf, grid_conf):
+        self.use_topology = use_topology
         self.is_train = is_train
         self.data_aug_conf = data_aug_conf
         self.grid_conf = grid_conf
@@ -254,10 +255,11 @@ class NuscData(torch.utils.data.Dataset):
     def get_topology(self, index):
         bin_path = os.path.join(self.samples[index]['path'], 'GT/')
         bins = []
-        seg = 'topology'
-        bin_name = os.path.join(bin_path, seg, str(self.samples[index]['frame']) + '.npy')
-        bin = np.load(bin_name)
-        bins.append(bin)
+        if self.use_topology:
+            seg = 'topology'
+            bin_name = os.path.join(bin_path, seg, str(self.samples[index]['frame']) + '.npy')
+            bin = np.load(bin_name)
+            bins.append(bin)
 
         return torch.Tensor(bins)
 
@@ -305,16 +307,16 @@ def worker_rnd_init(x):
     np.random.seed(13 + x)
 
 
-def compile_data(version, dataroot, data_aug_conf, grid_conf, bsz,
+def compile_data(version, dataroot, use_topology, data_aug_conf, grid_conf, bsz,
                  nworkers, parser_name):
     
     parser = {
         'vizdata': VizData,
         'segmentationdata': SegmentationData,
     }[parser_name]
-    traindata = parser(is_train=True, data_aug_conf=data_aug_conf,
+    traindata = parser(use_topology, is_train=True, data_aug_conf=data_aug_conf,
                          grid_conf=grid_conf)
-    valdata = parser(is_train=False, data_aug_conf=data_aug_conf,
+    valdata = parser(use_topology, is_train=False, data_aug_conf=data_aug_conf,
                        grid_conf=grid_conf)
 
     trainloader = torch.utils.data.DataLoader(traindata, batch_size=bsz,

@@ -126,10 +126,11 @@ class BevEncode(nn.Module):
 
 
 class LiftSplatShoot(nn.Module):
-    def __init__(self, grid_conf, data_aug_conf, outC):
+    def __init__(self, grid_conf, data_aug_conf, use_topology, outC):
         super(LiftSplatShoot, self).__init__()
         self.grid_conf = grid_conf
         self.data_aug_conf = data_aug_conf
+        self.use_topology = use_topology
 
         dx, bx, nx = gen_dx_bx(self.grid_conf['xbound'],
                                               self.grid_conf['ybound'],
@@ -148,7 +149,11 @@ class LiftSplatShoot(nn.Module):
 
         # toggle using QuickCumsum vs. autograd
         self.use_quickcumsum = True
-        self.controller = Cilrs()
+        if self.use_topology:
+            inC = 9
+        else:
+            inC = 8
+        self.controller = Cilrs(inC)
 
     def create_frustum(self):
         # make grid in image plane
@@ -254,11 +259,12 @@ class LiftSplatShoot(nn.Module):
         imgs = self.get_voxels(imgs, rots, trans, intrins, post_rots, post_trans)
         segs = self.bevencode(imgs)
         # Add topology
-        x = torch.cat((segs, topologies), 1)
+        if self.use_topology:
+            x = torch.cat((segs, topologies), 1)
         # Driving parameters
         controls = self.controller(x, cmds)
         return segs, controls
 
 
-def compile_model(grid_conf, data_aug_conf, outC):
-    return LiftSplatShoot(grid_conf, data_aug_conf, outC)
+def compile_model(grid_conf, data_aug_conf, use_topology, outC):
+    return LiftSplatShoot(grid_conf, data_aug_conf, use_topology, outC)

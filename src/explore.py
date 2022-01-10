@@ -247,6 +247,7 @@ def eval_model_iou(version,
 
 
 def viz_model_preds(version,
+                    use_topology,
                     modelf,
                     dataroot='/home/daniellin/data/sets/nuscenes',
                     map_folder='/home/daniellin/data/sets/nuscenes',
@@ -287,7 +288,7 @@ def viz_model_preds(version,
                     'cams': cams,
                     'Ncams': 5,
                 }
-    trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
+    trainloader, valloader = compile_data(version, dataroot, use_topology, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
     loader = trainloader if viz_train else valloader
@@ -296,7 +297,7 @@ def viz_model_preds(version,
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=8)
+    model = compile_model(grid_conf, data_aug_conf, use_topology, outC=8)
     print('loading', modelf)
     model.load_state_dict(torch.load(modelf))
     model.to(device)
@@ -340,7 +341,7 @@ def viz_model_preds(version,
                     plt.annotate(cams[imgi].replace('_', ' '), (0.01, 0.92), xycoords='axes fraction')
 
 
-                for si_seg in range(10):
+                for si_seg in range(len(segmentation_type)):
                     ax = plt.subplot(gs[si_seg // 5, si_seg % 5 * 3 : si_seg % 5 * 3 + 3])
                     ax.get_xaxis().set_ticks([])
                     ax.get_yaxis().set_ticks([])
