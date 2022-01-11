@@ -292,7 +292,7 @@ def viz_model_preds(version,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
     loader = trainloader if viz_train else valloader
-    nusc_maps = get_nusc_maps(map_folder)
+    # nusc_maps = get_nusc_maps(map_folder)
 
     # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
@@ -318,15 +318,24 @@ def viz_model_preds(version,
                          'yelow_solid_lane', 'drivable_lae', 'shoulder', 
                          'white_solid_lane', 'yellow_broken_lane']
     with torch.no_grad():
-        for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs) in enumerate(loader):
-            out = model(imgs.to(device),
+        for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs, topologies, cmds, controls) in enumerate(trainloader):
+            # out = model(imgs.to(device),
+            #         rots.to(device),
+            #         trans.to(device),
+            #         intrins.to(device),
+            #         post_rots.to(device),
+            #         post_trans.to(device),
+            #         )
+            pred_segs, preds_controls = model(imgs.to(device),
                     rots.to(device),
                     trans.to(device),
                     intrins.to(device),
                     post_rots.to(device),
                     post_trans.to(device),
+                    topologies.to(device),
+                    cmds.to(device)
                     )
-            out = out.sigmoid().cpu()
+            out = pred_segs.sigmoid().cpu()
 
             for si in range(imgs.shape[0]):
                 plt.clf()
