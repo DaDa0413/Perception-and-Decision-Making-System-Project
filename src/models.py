@@ -10,7 +10,7 @@ from efficientnet_pytorch import EfficientNet
 from torchvision.models.resnet import resnet18
 
 from .tools import gen_dx_bx, cumsum_trick, QuickCumsum
-
+from .cilrs import Cilrs
 
 class Up(nn.Module):
     def __init__(self, in_channels, out_channels, scale_factor=2):
@@ -126,10 +126,11 @@ class BevEncode(nn.Module):
 
 
 class LiftSplatShoot(nn.Module):
-    def __init__(self, grid_conf, data_aug_conf, outC):
+    def __init__(self, grid_conf, data_aug_conf, use_topology, outC):
         super(LiftSplatShoot, self).__init__()
         self.grid_conf = grid_conf
         self.data_aug_conf = data_aug_conf
+        self.use_topology = use_topology
 
         dx, bx, nx = gen_dx_bx(self.grid_conf['xbound'],
                                               self.grid_conf['ybound'],
@@ -143,14 +144,17 @@ class LiftSplatShoot(nn.Module):
         self.camC = 64
         self.frustum = self.create_frustum()
         self.D, _, _, _ = self.frustum.shape   # torch.Size([41, 8, 22, 3])
-        print(self.frustum.shape)
-        exit()
         self.camencode = CamEncode(self.D, self.camC, self.downsample)
         self.bevencode = BevEncode(inC=self.camC, outC=outC)
 
         # toggle using QuickCumsum vs. autograd
         self.use_quickcumsum = True
-    
+        if self.use_topology:
+            inC = 9
+        else:
+            inC = 8
+        self.controller = Cilrs(inC)
+
     def create_frustum(self):
         # make grid in image plane
         ogfH, ogfW = self.data_aug_conf['final_dim']
@@ -250,11 +254,17 @@ class LiftSplatShoot(nn.Module):
 
         return x
 
-    def forward(self, x, rots, trans, intrins, post_rots, post_trans):
-        x = self.get_voxels(x, rots, trans, intrins, post_rots, post_trans)
-        x = self.bevencode(x)
-        return x
+    def forward(self, imgs, rots, trans, intrins, post_rots, post_trans, topologies, cmds):
+        # BEV segmentation
+        imgs = self.get_voxels(imgs, rots, trans, intrins, post_rots, post_trans)
+        segs = self.bevencode(imgs)
+        # Add topology
+        if self.use_topology:
+            x = torch.cat((segs, topologies), 1)
+        # Driving parameters
+        controls = self.controller(x, cmds)
+        return segs, controls
 
 
-def compile_model(grid_conf, data_aug_conf, outC):
-    return LiftSplatShoot(grid_conf, data_aug_conf, outC)
+def compile_model(grid_conf, data_aug_conf, use_topology, outC):
+    return LiftSplatShoot(grid_conf, data_aug_conf, use_topology, outC)

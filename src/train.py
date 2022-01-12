@@ -5,6 +5,7 @@ Authors: Jonah Philion and Sanja Fidler
 """
 
 import torch
+import torch.nn.functional as F
 from time import time
 from tensorboardX import SummaryWriter
 import numpy as np
@@ -13,9 +14,10 @@ import os
 from .models import compile_model
 from .data import compile_data
 from .tools import SimpleLoss, get_batch_iou, get_val_info
-
+from .cilrs import Cilrs
 
 def train(version,
+            use_topology,
             # dataroot='/data/nuscenes',
             dataroot='/home/daniellin/data/sets/nuscenes',
             nepochs=10000,
@@ -37,9 +39,9 @@ def train(version,
             zbound=[-10.0, 10.0, 20.0],
             dbound=[4.0, 45.0, 1.0],
 
-            bsz=4,
+            bsz=32,
             nworkers=10,
-            lr=1e-3,
+            lr=1e-4,
             weight_decay=1e-7,
             ):
     grid_conf = {
@@ -59,14 +61,14 @@ def train(version,
                              'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT'],
                     'Ncams': ncams,
                 }
-    trainloader, valloader = compile_data(version, dataroot, data_aug_conf=data_aug_conf,
+    trainloader, valloader = compile_data(version, dataroot, use_topology, data_aug_conf=data_aug_conf,
                                           grid_conf=grid_conf, bsz=bsz, nworkers=nworkers,
                                           parser_name='segmentationdata')
 
-    # device = torch.device('cpu') if gpuid < 0 else torch.device(f'cuda:{gpuid}')
     device = torch.device('cuda:0')
 
-    model = compile_model(grid_conf, data_aug_conf, outC=4)
+    # Compile model    
+    model = compile_model(grid_conf, data_aug_conf, use_topology, outC=8)
     model.to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -78,32 +80,43 @@ def train(version,
 
     model.train()
     counter = 0
+
     for epoch in range(nepochs):
+        start = time()
         np.random.seed()
-        for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs) in enumerate(trainloader):
+        for batchi, (imgs, rots, trans, intrins, post_rots, post_trans, binimgs, topologies, cmds, controls) in enumerate(trainloader):
             t0 = time()
             opt.zero_grad()
-            preds = model(imgs.to(device),
+            # Predict segmentation and control
+            pred_segs, preds_controls = model(imgs.to(device),
                     rots.to(device),
                     trans.to(device),
                     intrins.to(device),
                     post_rots.to(device),
                     post_trans.to(device),
+                    topologies.to(device),
+                    cmds.to(device)
                     )
             binimgs = binimgs.to(device)
-            loss = loss_fn(preds, binimgs)
-            loss.backward()
+            controls = controls.to(device)
+
+            # loss function
+            loss1 = loss_fn(pred_segs, binimgs)
+            loss2 = F.l1_loss(preds_controls, controls)
+            loss3 = loss1 + loss2
+            loss3.backward()
+            # Clip norm and optimized
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
             opt.step()
             counter += 1
             t1 = time()
 
             if counter % 10 == 0:
-                print(counter, loss.item())
-                writer.add_scalar('train/loss', loss, counter)
+                print(counter, loss3.item())
+                writer.add_scalar('train/loss', loss3, counter)
 
             if counter % 50 == 0:
-                _, _, iou = get_batch_iou(preds, binimgs)
+                _, _, iou = get_batch_iou(pred_segs, binimgs)
                 writer.add_scalar('train/iou', iou, counter)
                 writer.add_scalar('train/epoch', epoch, counter)
                 writer.add_scalar('train/step_time', t1 - t0, counter)
@@ -111,7 +124,10 @@ def train(version,
             if counter % val_step == 0:
                 val_info = get_val_info(model, valloader, loss_fn, device)
                 print('VAL', val_info)
-                writer.add_scalar('val/loss', val_info['loss'], counter)
+                writer.add_scalar('val/seg_loss', val_info['seg_loss'], counter)
+                writer.add_scalar('val/throttle_loss', val_info['throttle_loss'], counter)
+                writer.add_scalar('val/steer_loss', val_info['steer_loss'], counter)
+                writer.add_scalar('val/brake_loss', val_info['brake_loss'], counter)
                 writer.add_scalar('val/iou', val_info['iou'], counter)
 
             if counter % val_step == 0:
@@ -120,3 +136,4 @@ def train(version,
                 print('saving', mname)
                 torch.save(model.state_dict(), mname)
                 model.train()
+        print("Time interval: {}".format(time() - start))
